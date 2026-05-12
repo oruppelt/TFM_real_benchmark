@@ -1,0 +1,6 @@
+extends: default.yaml
+
+family_regimes:
+  non_perishable:
+    overage_cost_ratio: 0.1
+    underage_cost_ratio: 0.9

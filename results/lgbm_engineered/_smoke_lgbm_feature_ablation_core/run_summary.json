@@ -1,0 +1,84 @@
+{
+  "experiment_kind": "feature_ablation",
+  "run_name": "_smoke_lgbm_feature_ablation_core",
+  "output_dir": "/Users/alexruppelt/Documents/Projects/tabpfn_analysis/results/lgbm_engineered/_smoke_lgbm_feature_ablation_core",
+  "feature_sets": [
+    "minimal"
+  ],
+  "use_core_slice": true,
+  "quick": true,
+  "train_quantile_models": false,
+  "tuned_params_path": null,
+  "n_train_origins": 2,
+  "training_origins": [
+    "2016-12-26",
+    "2017-01-02"
+  ],
+  "validation_origins": [
+    "2017-02-06",
+    "2017-02-13",
+    "2017-02-20",
+    "2017-02-27",
+    "2017-03-06",
+    "2017-03-13",
+    "2017-03-20",
+    "2017-03-27"
+  ],
+  "test_origins": [
+    "2017-06-11"
+  ],
+  "horizon_days": 28,
+  "lgbm_defaults": {
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "min_child_samples": 50,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 5,
+    "n_estimators": 20,
+    "verbose": -1,
+    "random_state": 42
+  },
+  "lgbm_early_stopping_rounds": 25,
+  "frames": {
+    "minimal": {
+      "n_train_rows": 5600,
+      "n_val_rows": 22400,
+      "n_forecast_rows": 2800,
+      "n_series": 100,
+      "n_test_origins": 1
+    }
+  },
+  "timing": {
+    "minimal": {
+      "tweedie_train_seconds": 0.21254587173461914,
+      "quantile_train_seconds": 0.0,
+      "forecast_seconds": 0.00470423698425293,
+      "total_seconds": 1.9305758476257324,
+      "predictions_per_second": 595208.1090669505
+    }
+  },
+  "metrics": [
+    {
+      "feature_set": "minimal",
+      "regime": "perishable",
+      "n_rows": 105,
+      "mae": 307.3568606957868,
+      "rmse": 489.25471534592606,
+      "smape": 0.5014873407765079,
+      "bias": -0.1369773829774335
+    },
+    {
+      "feature_set": "minimal",
+      "regime": "non_perishable",
+      "n_rows": 85,
+      "mae": 5918.801952097036,
+      "rmse": 21130.83272425716,
+      "smape": 1.2305939067915534,
+      "bias": -0.31437695588014525
+    }
+  ],
+  "runtime_log_path": "runtime_log.parquet",
+  "git_commit": "no-git",
+  "created_at": "2026-04-26T13:16:00.158579+00:00"
+}

@@ -1,0 +1,38 @@
+{
+  "feature_set": "full",
+  "use_core_slice": true,
+  "n_train_origins": 24,
+  "test_origin": "2017-06-11",
+  "quick": true,
+  "trained_quantile_models": true,
+  "n_train_rows": 67200,
+  "n_val_rows": 22400,
+  "n_forecast_rows": 2800,
+  "metrics": [
+    {
+      "regime": "perishable",
+      "n_rows": 154,
+      "mae": 161.83223845743447,
+      "rmse": 321.3523211855243,
+      "smape": 0.2490625241662094,
+      "bias": -0.06737638078779264,
+      "pinball_q10": 44.324289765552805,
+      "pinball_q50": 69.25741104669959,
+      "pinball_q90": 36.80676029917756,
+      "coverage_80": 0.5974025974025974
+    },
+    {
+      "regime": "non_perishable",
+      "n_rows": 78,
+      "mae": 546.7396072812385,
+      "rmse": 1262.1881918829617,
+      "smape": 0.19628604015797566,
+      "bias": -0.021762086975050682,
+      "pinball_q10": 14.032897238467603,
+      "pinball_q50": 28.65921546343791,
+      "pinball_q90": 14.840869432351022,
+      "coverage_80": 0.702075702075702
+    }
+  ],
+  "timestamp": "2026-04-26T12:55:35.208981+00:00"
+}

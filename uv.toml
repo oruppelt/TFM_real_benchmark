@@ -1,0 +1,7 @@
+# uv configuration for this project.
+#
+# PyTorch cu124 wheels live on PyTorch's own index, not PyPI.
+# This tells uv to look there for torch (and only there for torch).
+# The cu124 build works with CUDA 12.8 drivers (RunPod RTX 4090 as of 2026-04).
+# If RunPod updates drivers to 13.x, bump torch version and change cu124 → cu130.
+

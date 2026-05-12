@@ -1,0 +1,127 @@
+# Post 3 — Favorita demand forecasting — main experiment config.
+# PRD reference: post3-prd-demand-forecasting.md
+
+seed: 42
+
+paths:
+  data_dir: data/favorita_demand
+  cache_dir: data/favorita_demand/_cache
+  results_dir: results
+  figures_dir: results/figures
+  core_slice_csv: config/core_slice_series.csv
+
+horizon_days: 28
+
+# §3.3 — regime assignment, cost ratios. ALL_OTHER keyword matches any family
+# not listed in `perishable.families`.
+family_regimes:
+  perishable:
+    families:
+      - PRODUCE
+      - DAIRY
+      - MEATS
+      - DELI
+      - BREAD/BAKERY
+      - EGGS
+    horizon_days: [1, 7]
+    overage_cost_ratio: 0.8
+    underage_cost_ratio: 0.2
+  non_perishable:
+    families: ALL_OTHER
+    horizon_days: [8, 28]
+    overage_cost_ratio: 0.15
+    underage_cost_ratio: 0.85
+
+# §5.1 — main splits
+splits:
+  train_start: 2013-01-01
+  train_end:   2017-01-31
+  val_start:   2017-02-01
+  val_end:     2017-04-30
+  test_start:  2017-05-01
+  test_end:    2017-08-15
+  # §5.1.1 — rolling forecast origins on the test set.
+  test_origins:
+    - 2017-04-30
+    - 2017-05-14
+    - 2017-05-28
+    - 2017-06-11
+    - 2017-06-25
+    - 2017-07-09
+    - 2017-07-17
+  # §5.1.1.1 — training & validation origin grids (weekly Mondays).
+  training_origins_freq: W-MON
+  training_origins_start: 2013-01-28
+  training_origins_end:   2017-01-02
+  validation_origins_freq: W-MON
+  validation_origins_start: 2017-02-06
+  validation_origins_end:   2017-03-27
+
+# §5.1.3 — core comparability slice
+core_slice:
+  n_series: 100
+  min_nonzero_days: 365
+  relaxed_min_nonzero_days: 180
+
+# §5.2 — distribution-shift experiment
+drift_experiment:
+  train_end: 2016-04-15
+  test_start: 2016-04-17
+  test_end:   2016-06-30
+  earthquake_start: 2016-04-16
+  earthquake_end:   2016-07-31
+  # Variant A: drop earthquake features. Variant B: keep them.
+  variants: [A, B]
+
+# §5.3 — cold-start experiment
+cold_start:
+  holdout_pct: 0.10
+  history_lengths: [7, 28, 90]
+  forecast_horizon: 28
+  metric_days: [1, 7]
+
+# §6.1 — LightGBM
+lgbm:
+  categorical: [store_nbr, family, city, state, type, cluster]
+  objectives:
+    tweedie:
+      objective: tweedie
+      tweedie_variance_power: 1.5
+    gaussian:
+      objective: regression
+    quantile:
+      objective: quantile
+      alphas: [0.1, 0.5, 0.9]
+  # Tuning-time defaults; Optuna overrides the search-space params only.
+  defaults:
+    learning_rate: 0.05
+    num_leaves: 63
+    min_child_samples: 50
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 5
+    n_estimators: 2000
+    verbose: -1
+    random_state: 42
+  # Optuna search ranges (§6.1).
+  search_space:
+    num_leaves: [15, 255]
+    learning_rate: [0.01, 0.2]
+    feature_fraction: [0.6, 1.0]
+    bagging_fraction: [0.6, 1.0]
+    min_child_samples: [10, 200]
+    n_estimators_max: 2000
+    early_stopping_rounds: 50
+  tuning:
+    n_trials: 50
+    tuning_feature_set: full
+    fallback_n_trials: 30
+
+# §8 — newsvendor
+newsvendor:
+  quantiles: [0.1, 0.5, 0.9]
+
+# §10.1.1 — batch SLA simulation
+deployment:
+  weekly_refresh_sku_store: 30000
+  overnight_sla_hours: 8

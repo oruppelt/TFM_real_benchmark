@@ -1,0 +1,46 @@
+# Single source of truth for all insurance experiment settings.
+# Referenced by the notebook and all scripts.
+
+data:
+  random_state: 42
+  holdout_fraction: 0.20
+  n_cv_folds: 5
+
+tabpfn:
+  # TabPFN API notes (v7.0.1, checked 2026-03-30):
+  #   - sample_weight NOT supported in fit()
+  #   - quantile output supported via predict(output_type='quantiles')
+  #   - requires HuggingFace auth: hf auth login
+  subsample_sizes: [10000, 50000]
+  exposure_strategies: ["rate", "feature"]
+  recalibration_methods: ["tweedie_glm", "isotonic"]
+  n_inner_folds_recal: 3   # Option B: nested inner-fold OOF recalibration
+
+tuning:
+  n_trials: 50
+  n_inner_folds: 3
+  # Tuning happens ONCE on the full dev set (not per outer fold).
+  # This prevents outer-fold overfitting while keeping compute manageable.
+
+modeling:
+  approaches: ["freqsev", "tweedie", "hurdle"]
+  tweedie_power: 1.5
+
+features:
+  pipelines: ["raw", "engineered"]
+
+# Prioritization if time is tight:
+# 1. Must have: all models × engineered × all 3 approaches
+# 2. Should have: all models × raw × tweedie
+# 3. Nice to have: full matrix
+priority:
+  must_have:
+    features: ["engineered"]
+    approaches: ["freqsev", "tweedie", "hurdle"]
+  should_have:
+    features: ["raw"]
+    approaches: ["tweedie"]
+
+deployment:
+  inference_sizes: [10000, 50000, 100000]
+  n_timing_runs: 5

@@ -1,0 +1,11 @@
+{
+  "local_holdout_rmsle": 0.3866311933816087,
+  "local_holdout_mae": 56.41736340909393,
+  "n_train_rows": 2979504,
+  "n_holdout_rows": 28512,
+  "n_full_train_rows": 3008016,
+  "n_test_rows": 28512,
+  "n_features": 34,
+  "feature_set": "full",
+  "timestamp": "2026-04-26T12:48:48.090036+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "spearman_rho": 0.1056,
+  "spearman_pval": 0.7081,
+  "n_rows_kernel": 50,
+  "n_rows_tree": 1000,
+  "t_treeshap_s": 0.09,
+  "t_kernelshap_s": 11143.6,
+  "speedup_ratio": 121632.0
+}
