@@ -1,0 +1,61 @@
+# Data files — never commit raw or processed data
+data/
+*.parquet
+*.csv
+*.feather
+*.arrow
+*.h5
+*.hdf5
+
+# Model checkpoints
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.ckpt
+results/*.parquet
+
+# Environment
+.env
+.env.*
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Optuna DBs (can get large)
+*.db
+optuna_studies/
+
+#runpod files
+notebooks/runpod
+
+#post3 materials
+notebooks/post3*.*
+insurance-experiment-spec.md
+post3-prd-demand-forecasting.md
+*post3*.*
+src/demand
