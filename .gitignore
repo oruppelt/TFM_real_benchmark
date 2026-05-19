@@ -1,5 +1,5 @@
 # Data files — never commit raw or processed data
-data/
+/data/
 *.parquet
 *.csv
 *.feather
