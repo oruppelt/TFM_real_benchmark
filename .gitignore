@@ -51,7 +51,7 @@ Thumbs.db
 optuna_studies/
 
 #runpod files
-notebooks/runpod
+notebooks/runpod*
 
 #post3 materials
 notebooks/post3*.*

@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-RESULTS_DIR = Path(__file__).parent.parent.parent / "results" / "holdout"
+RESULTS_DIR = Path(__file__).parent.parent.parent / "results" / "post2" / "holdout"
 
 
 def auction_analysis(
@@ -153,7 +153,7 @@ def run_all_auctions(
         holdout_results: DataFrame with model names as index (from cv_engine.holdout_evaluation)
         y_holdout:       pure_premium ground truth on holdout
         exposure_holdout: exposure on holdout
-        predictions_path: path to holdout predictions parquet; defaults to results/holdout/predictions.parquet
+        predictions_path: path to holdout predictions parquet; defaults to results/post2/holdout/predictions_all.parquet
     """
     if predictions_path is None:
         # Use merged file if available, fall back to baselines-only

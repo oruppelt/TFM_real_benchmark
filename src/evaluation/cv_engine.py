@@ -35,7 +35,8 @@ from tqdm import tqdm
 
 from src.metrics import tweedie_deviance, poisson_deviance, gamma_deviance, gini_coefficient, rmse, mae
 
-RESULTS_DIR = Path(__file__).parent.parent.parent / "results" / "cv"
+POST2_RESULTS_DIR = Path(__file__).parent.parent.parent / "results" / "post2"
+RESULTS_DIR = POST2_RESULTS_DIR / "cv"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 ApproachLabel = str   # "freqsev" | "tweedie" | "hurdle"
@@ -58,6 +59,7 @@ def run_cv(
     tabpfn_n_inner_folds: int = 3,
     tabpfn_recalibrate: bool = True,
     save: bool = True,
+    output_dir: Path | None = None,
 ) -> dict:
     """
     Run 5-fold outer CV, returning OOF predictions and per-fold metrics.
@@ -85,6 +87,9 @@ def run_cv(
         features_label:            "raw" or "engineered"
         tabpfn_n_inner_folds:      inner folds for TabPFN recalibration (Option B)
         save:                      whether to save OOF predictions and metrics to disk
+        output_dir:                directory to save results into; defaults to results/post2/cv/.
+                                   Pass an experiment subdir (e.g. results/post2/cv/<EXPERIMENT_ID>)
+                                   to keep multiple runs from overwriting each other.
 
     Returns:
         dict with keys:
@@ -167,7 +172,7 @@ def run_cv(
     }
 
     if save:
-        _save_cv_results(result, model_name, features_label, approach)
+        _save_cv_results(result, model_name, features_label, approach, output_dir=output_dir)
 
     return result
 
@@ -216,8 +221,14 @@ def _fit_predict_tabpfn_with_recalibration(
         inner_model.fit(X_tr[i_tr], y_tr[i_tr], exposure=exp_tr[i_tr])
         inner_oof[i_val] = inner_model.predict(X_tr[i_val], exposure=exp_tr[i_val])
 
-    # Drop NaN rows (shouldn't happen, but guard)
-    valid = ~np.isnan(inner_oof)
+    # Drop only invalid rows. The sklearn Tweedie recalibrator treats TabPFN
+    # predictions as scores, so clipped near-zero predictions remain meaningful.
+    invalid_recal = ~np.isfinite(y_tr) | ~np.isfinite(inner_oof) | (y_tr < 0)
+    valid = ~invalid_recal
+    print(
+        f"  Recalibration fit rows: {int(valid.sum())}/{len(valid)} "
+        f"(dropped invalid={int(invalid_recal.sum())})"
+    )
 
     # Step 3: fit recalibrators on inner OOF
     tweedie_recal = TweedieRecalibrator()
@@ -235,8 +246,21 @@ def _fit_predict_tabpfn_with_recalibration(
 
     info = {
         "n_clipped_raw": int(model._n_clipped),
-        "recal_method": "tweedie_glm",  # default; isotonic saved separately
+        "recal_method": "tweedie_sklearn_log_glm",
+        "recal_fit_rows": int(valid.sum()),
+        "recal_dropped_invalid": int(invalid_recal.sum()),
+        "recal_intercept": float(tweedie_recal._model.intercept_),
+        "recal_coef": float(tweedie_recal._model.coef_[0]),
+        "recal_n_iter": float(tweedie_recal._model.n_iter_),
+        "recal_pred_floor": float(tweedie_recal.pred_floor_),
+        "recal_log_pred_mean": float(tweedie_recal.log_pred_mean_),
+        "recal_log_pred_scale": float(tweedie_recal.log_pred_scale_),
     }
+    print(
+        f"  Recalibration coef: intercept={info['recal_intercept']:.6g} "
+        f"coef={info['recal_coef']:.6g} floor={info['recal_pred_floor']:.6g} "
+        f"n_iter={int(info['recal_n_iter'])}"
+    )
 
     # Return Tweedie-recalibrated as the primary prediction
     return tweedie_preds, info
@@ -258,6 +282,7 @@ def run_cv_hurdle(
     features_label: str,
     tabpfn_n_inner_folds: int = 3,
     save: bool = True,
+    output_dir: Path | None = None,
 ) -> dict:
     """
     Full 2-stage hurdle model CV.
@@ -393,7 +418,7 @@ def run_cv_hurdle(
     }
 
     if save:
-        _save_cv_results(result, model_name, features_label, "hurdle")
+        _save_cv_results(result, model_name, features_label, "hurdle", output_dir=output_dir)
 
     return result
 
@@ -411,6 +436,7 @@ def holdout_evaluation(
     y_holdout: pd.DataFrame,
     exposure_holdout: pd.Series,
     tag: str = "baselines",
+    output_dir: Path | None = None,
 ) -> pd.DataFrame:
     """
     Retrain all models on full dev set and evaluate on holdout.
@@ -422,12 +448,18 @@ def holdout_evaluation(
              e.g. "baselines" → metrics_baselines.parquet
                   "tabpfn"    → metrics_tabpfn.parquet
              post2_analysis.ipynb merges all metrics_*.parquet files.
+        output_dir: directory to save into; defaults to results/post2/holdout/.
+             Pass an experiment subdir (e.g. results/post2/holdout/<EXPERIMENT_ID>)
+             to keep multiple runs from overwriting each other.
 
     Returns:
         DataFrame with one row per model config, columns = metrics
     """
     from pathlib import Path
-    save_dir = Path(__file__).parent.parent.parent / "results" / "holdout"
+    if output_dir is not None:
+        save_dir = Path(output_dir)
+    else:
+        save_dir = POST2_RESULTS_DIR / "holdout"
     save_dir.mkdir(parents=True, exist_ok=True)
 
     rows = []
@@ -450,7 +482,8 @@ def holdout_evaluation(
         model = cfg["model_factory"]()
         is_tabpfn = hasattr(model, "n_train_max")
 
-        if is_tabpfn:
+        tabpfn_recalibrate = cfg.get("tabpfn_recalibrate", True)
+        if is_tabpfn and tabpfn_recalibrate:
             preds, _ = _fit_predict_tabpfn_with_recalibration(
                 model=model,
                 pipe=pipe,
@@ -580,9 +613,12 @@ def _evaluate_predictions(
     }
 
 
-def _save_cv_results(result: dict, model_name: str, features_label: str, approach: str) -> None:
+def _save_cv_results(result: dict, model_name: str, features_label: str, approach: str,
+                     output_dir: Path | None = None) -> None:
+    target_dir = Path(output_dir) if output_dir is not None else RESULTS_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
     stem = f"{model_name}_{features_label}_{approach}"
     oof_df = pd.DataFrame({"oof_pred": result["oof_predictions"]})
-    oof_df.to_parquet(RESULTS_DIR / f"{stem}_oof.parquet")
-    with open(RESULTS_DIR / f"{stem}_fold_metrics.json", "w") as f:
+    oof_df.to_parquet(target_dir / f"{stem}_oof.parquet")
+    with open(target_dir / f"{stem}_fold_metrics.json", "w") as f:
         json.dump({"folds": result["fold_metrics"], "mean": result["mean_metrics"], "std": result["std_metrics"]}, f, indent=2)

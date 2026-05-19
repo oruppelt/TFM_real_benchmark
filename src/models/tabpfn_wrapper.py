@@ -1,16 +1,6 @@
 """
 TabPFN wrapper for insurance pricing.
 
-API findings (TabPFN v7.0.1, checked 2026-03-30):
-    - TabPFNRegressor   ✓  exists
-    - TabPFNClassifier  ✓  exists
-    - fit(X, y)         — NO sample_weight parameter in signature
-    - predict(X, output_type='quantiles', quantiles=[...]) — quantile output ✓
-    - Distillation      — not tested (requires HuggingFace model download)
-    - Model weights     — gated on HuggingFace, requires:
-                          1. Accept terms at huggingface.co/Prior-Labs/tabpfn_2_6
-                          2. Run: hf auth login
-
 Consequences for the experiment design:
     1. No sample_weight → can't use exposure weighting like GBMs.
        Two workarounds implemented (see exposure_strategy).
@@ -277,51 +267,100 @@ class TweedieRecalibrator:
     """
     Post-hoc Tweedie GLM recalibration for TabPFN predictions.
 
-    Fits a single-variable Tweedie GLM: y_true ~ Tweedie(link=log, x=tabpfn_pred).
-    This re-optimises the mapping from TabPFN's internal metric space to
-    Tweedie deviance without re-training TabPFN.
+    Fits a regularized Tweedie GLM on a stabilized log TabPFN prediction:
+
+        z = standardize(log(max(pred, floor)))
+        E[y | z] = exp(intercept + beta * z)
+
+    This keeps the original multiplicative recalibration idea while avoiding
+    the numerical leverage of log(1e-10) when TabPFN emits non-positive values
+    that the wrapper clips to its prediction floor.
 
     Intended to be fitted on OOF predictions from inner-fold CV (Option B).
     Applied to outer validation fold at inference time.
 
-    Why a single-variable GLM and not isotonic?
-        Tweedie GLM preserves the multiplicative structure (log link) which is
-        natural for insurance pricing. Isotonic regression is more flexible but
-        can overfit on the relatively small OOF set available here, especially
-        at 10K subsample sizes.
+    Why a learned floor?
+        Current TabPFN regression outputs can be non-positive before wrapper
+        clipping. Using log(1e-10) for those clipped values creates extreme
+        leverage points. A low positive OOF quantile treats those rows as very
+        low predictions without letting an arbitrary numerical epsilon dominate
+        the fit.
     """
 
-    def __init__(self, var_power: float = 1.5):
+    def __init__(
+        self,
+        var_power: float = 1.5,
+        alpha: float = 1e-4,
+        floor_quantile: float = 0.01,
+    ):
         self.var_power = var_power
-        self._result = None
+        self.alpha = alpha
+        self.floor_quantile = floor_quantile
+        self._model = None
+        self.n_fit_samples_ = 0
+        self.pred_floor_ = 1e-10
+        self.log_pred_mean_ = 0.0
+        self.log_pred_scale_ = 1.0
 
     def fit(
         self,
         y_true: np.ndarray,
         y_pred_tabpfn: np.ndarray,
     ) -> "TweedieRecalibrator":
-        import statsmodels.api as sm
+        from sklearn.linear_model import TweedieRegressor
 
-        X = sm.add_constant(np.log(np.clip(y_pred_tabpfn, 1e-10, None)).reshape(-1, 1))
-        glm = sm.GLM(
-            y_true,
-            X,
-            family=sm.families.Tweedie(
-                var_power=self.var_power,
-                link=sm.families.links.Log(),
-            ),
+        y_true = np.asarray(y_true, dtype=float).ravel()
+        y_pred_tabpfn = np.asarray(y_pred_tabpfn, dtype=float).ravel()
+        valid = np.isfinite(y_true) & np.isfinite(y_pred_tabpfn) & (y_true >= 0)
+        if not np.any(valid):
+            raise ValueError("No valid rows available to fit TweedieRecalibrator")
+
+        pred = y_pred_tabpfn[valid]
+        y = y_true[valid]
+        self.n_fit_samples_ = int(len(y))
+        self.pred_floor_ = self._learn_floor(pred)
+        log_pred = np.log(np.clip(pred, self.pred_floor_, None))
+        self.log_pred_mean_ = float(np.mean(log_pred))
+        scale = float(np.std(log_pred))
+        self.log_pred_scale_ = scale if np.isfinite(scale) and scale > 0 else 1.0
+        X = ((log_pred - self.log_pred_mean_) / self.log_pred_scale_).reshape(-1, 1)
+
+        self._model = TweedieRegressor(
+            power=self.var_power,
+            link="log",
+            alpha=self.alpha,
+            max_iter=1000,
+            tol=1e-6,
         )
-        self._result = glm.fit(maxiter=100, disp=False)
+        self._model.fit(X, y)
         return self
 
     def predict(self, y_pred_tabpfn: np.ndarray) -> np.ndarray:
-        import statsmodels.api as sm
+        if self._model is None:
+            raise ValueError("TweedieRecalibrator must be fitted before predict")
 
-        X = sm.add_constant(np.log(np.clip(y_pred_tabpfn, 1e-10, None)).reshape(-1, 1))
-        return np.clip(self._result.predict(X), 1e-10, None)
+        y_pred_tabpfn = np.asarray(y_pred_tabpfn, dtype=float)
+        pred = np.where(np.isfinite(y_pred_tabpfn), y_pred_tabpfn, self.pred_floor_)
+        log_pred = np.log(np.clip(pred, self.pred_floor_, None))
+        X = ((log_pred - self.log_pred_mean_) / self.log_pred_scale_).reshape(-1, 1)
+        return np.clip(self._model.predict(X), 1e-10, None)
 
     def clone(self) -> "TweedieRecalibrator":
-        return TweedieRecalibrator(var_power=self.var_power)
+        return TweedieRecalibrator(
+            var_power=self.var_power,
+            alpha=self.alpha,
+            floor_quantile=self.floor_quantile,
+        )
+
+    def _learn_floor(self, pred: np.ndarray) -> float:
+        positive = pred[np.isfinite(pred) & (pred > 1e-8)]
+        if len(positive) == 0:
+            return 1e-3
+
+        floor = float(np.quantile(positive, self.floor_quantile))
+        if not np.isfinite(floor) or floor <= 0:
+            return 1e-3
+        return max(floor, 1e-3)
 
 
 class IsotonicRecalibrator:

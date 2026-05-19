@@ -9,7 +9,8 @@ description = "Tabular Foundation Models in the Real World — experiments for S
 requires-python = ">=3.10,<3.13"
 dependencies = [
     # Core ML
-    "tabpfn>=2.0",
+    "tabpfn==8.0.2",
+    "tabpfn-client>=0.1",
     # PyTorch pinned to cu124 — works with CUDA 12.8 driver (RunPod RTX 4090).
     # cu130 (default since torch 2.8) requires CUDA 13.0+ driver which RunPod doesn't have yet.
     "torch==2.5.1",

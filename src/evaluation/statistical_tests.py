@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-RESULTS_DIR = Path(__file__).parent.parent.parent / "results" / "cv"
+RESULTS_DIR = Path(__file__).parent.parent.parent / "results" / "post2" / "cv"
 
 
 def compare_models_cv(
