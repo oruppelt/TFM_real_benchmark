@@ -1,11 +1,19 @@
 {
-  "local_holdout_rmsle": 0.3866311933816087,
-  "local_holdout_mae": 56.41736340909393,
-  "n_train_rows": 2979504,
+  "local_holdout_rmsle": 0.4003044499052639,
+  "local_holdout_mae": 70.15042394476404,
+  "n_train_rows": 3792096,
   "n_holdout_rows": 28512,
-  "n_full_train_rows": 3008016,
+  "n_full_train_rows": 3849120,
   "n_test_rows": 28512,
-  "n_features": 34,
-  "feature_set": "full",
-  "timestamp": "2026-04-26T12:48:48.090036+00:00"
+  "n_features": 35,
+  "direct_horizon_days": 16,
+  "holdout_origin": "2017-07-30T00:00:00",
+  "kaggle_origin": "2017-08-15T00:00:00",
+  "train_origins_start": "2015-01-05T00:00:00",
+  "train_origins_freq": "7D",
+  "git_commit": "c58e1c9",
+  "timestamp": "2026-06-15T23:37:19.971535+00:00",
+  "wall_clock_seconds": 13296.646600961685,
+  "expected_lb_range_low": 0.30030444990526395,
+  "expected_lb_range_high": 0.550304449905264
 }

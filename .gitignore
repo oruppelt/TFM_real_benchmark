@@ -54,8 +54,8 @@ optuna_studies/
 notebooks/runpod*
 
 #post3 materials
-notebooks/post3*.*
+# notebooks/post3*.*
 insurance-experiment-spec.md
 post3-prd-demand-forecasting.md
-*post3*.*
+# *post3*.*
 src/demand

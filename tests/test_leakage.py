@@ -170,6 +170,34 @@ def test_supervised_frame_uses_origin_oil_not_future_actuals():
     assert frame.loc[frame["horizon_offset"] == 7, "oil_ma_7"].iloc[0] == origin_oil
 
 
+def test_supervised_frame_uses_origin_transaction_lags():
+    dates = pd.date_range("2016-01-01", "2016-03-31", freq="D")
+    origin = pd.Timestamp("2016-02-29")
+    rows = []
+    for i, date in enumerate(dates):
+        rows.append({
+            "date": date, "store_nbr": 1, "family": "PRODUCE",
+            "sales": float(i), "onpromotion": 0, "oil_price": 50.0,
+            "city": "Quito", "state": "Pichincha", "type": "A", "cluster": 1,
+            "transactions": 1000.0 + i, "id": None,
+        })
+    panel = pd.DataFrame(rows)
+
+    frame = build_supervised_frame(
+        panel, origins=[origin], horizon=7, feature_set="full",
+        config={"horizon_days": 28}, mode="forecast",
+    )
+
+    expected_lag_1 = panel.loc[panel["date"] == origin, "transactions"].iloc[0]
+    expected_lag_7 = panel.loc[
+        panel["date"] == origin - pd.Timedelta(days=6), "transactions"
+    ].iloc[0]
+    assert frame["transactions_lag_1"].notna().all()
+    assert frame["transactions_lag_7"].notna().all()
+    assert frame["transactions_lag_1"].eq(expected_lag_1).all()
+    assert frame["transactions_lag_7"].eq(expected_lag_7).all()
+
+
 def test_family_share_uses_store_daily_total():
     dates = pd.date_range("2016-01-01", "2016-02-15", freq="D")
     rows = []

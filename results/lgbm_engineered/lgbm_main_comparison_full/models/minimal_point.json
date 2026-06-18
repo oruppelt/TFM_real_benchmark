@@ -1,0 +1,42 @@
+{
+  "name": "lgbm_point",
+  "objective": "regression",
+  "feature_set": "minimal",
+  "feature_cols": [
+    "day_of_week",
+    "day_of_month",
+    "month",
+    "year",
+    "onpromotion",
+    "is_holiday",
+    "oil_price",
+    "store_nbr",
+    "family",
+    "city",
+    "state",
+    "type",
+    "cluster",
+    "horizon_offset"
+  ],
+  "categorical_cols": [
+    "store_nbr",
+    "family",
+    "city",
+    "state",
+    "type",
+    "cluster"
+  ],
+  "alpha": null,
+  "log_target": true,
+  "params": {
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "min_child_samples": 50,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 5,
+    "verbose": -1,
+    "random_state": 42,
+    "objective": "regression"
+  }
+}

@@ -23,6 +23,9 @@ family_regimes:
       - DELI
       - BREAD/BAKERY
       - EGGS
+      - POULTRY
+      - PREPARED FOODS
+      - SEAFOOD
     horizon_days: [1, 7]
     overage_cost_ratio: 0.8
     underage_cost_ratio: 0.2
@@ -80,18 +83,22 @@ cold_start:
   forecast_horizon: 28
   metric_days: [1, 7]
 
-# §6.1 — LightGBM
+# §6.1 — LightGBM. Two objectives only:
+#   point    — L2 regression on a log1p target (demand is multiplicative; the
+#              back-transform targets the conditional median, matching MAE/WAPE).
+#   quantile — pinball loss at p10/p50/p90, also on the log1p target (quantiles
+#              are equivariant under the monotone log1p map), used for §8 newsvendor.
+# No Tweedie/Poisson/Gaussian — see post3 discussion for rationale.
 lgbm:
   categorical: [store_nbr, family, city, state, type, cluster]
   objectives:
-    tweedie:
-      objective: tweedie
-      tweedie_variance_power: 1.5
-    gaussian:
+    point:
       objective: regression
+      log_target: true
     quantile:
       objective: quantile
       alphas: [0.1, 0.5, 0.9]
+      log_target: true
   # Tuning-time defaults; Optuna overrides the search-space params only.
   defaults:
     learning_rate: 0.05
